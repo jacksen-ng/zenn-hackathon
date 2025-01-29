@@ -31,6 +31,7 @@ pandas
 numpy
 scikit-learn
 scipy
+nltk
 
 # --- その他必要に応じて ---
 requests  # 手動でrequestsを直接使う場合のみ
@@ -43,6 +44,7 @@ python-dotenv
 # fsspec
 # filetype
 # etc.
+faiss-cpu
 
 ### ジャクセン ###
 fastapi
