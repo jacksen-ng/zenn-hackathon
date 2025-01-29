@@ -11,7 +11,7 @@ async def create_user(db: Session, user: schemas.UserCreate):
     try:
         db_user = models.User(
             email=user.email,
-            password=user.password  # 注意：实际应用中应该对密码进行哈希处理
+            password=user.password  
         )
         db.add(db_user)
         db.commit()
@@ -33,7 +33,7 @@ async def verify_user(db: Session, email: str, password: str):
     try:
         logger.info(f"Attempting to verify user with email: {email}")
         user = db.query(models.User).filter(models.User.email == email).first()
-        if user and user.password == password:  # 注意：实际应用中应该比较哈希值
+        if user and user.password == password:  
             return user
         return None
     except Exception as e:
