@@ -24,30 +24,25 @@ from starlette.middleware.sessions import SessionMiddleware
 import secrets
 
 
-# 配置日志
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# 创建数据库表
 Base.metadata.create_all(bind=engine)
 
-# 创建 FastAPI 应用
 app = FastAPI()
 
-# 添加 Session 中间件（必须在其他中间件之前）
 app.add_middleware(
     SessionMiddleware,
     secret_key=secrets.token_urlsafe(32),
     session_cookie="session",
-    max_age=1800,  # 30分钟
+    max_age=1800,  
     same_site="lax",
-    https_only=False  # 开发环境设为 False
+    https_only=False  
 )
 
-# 然后添加其他中间件
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -57,7 +52,6 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-# 错误处理中间件
 class ErrorHandlingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         try:
@@ -75,19 +69,16 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(ErrorHandlingMiddleware)
 
-# 配置模板和静态文件
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# OAuth2 scheme for token authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-# 主页路由
-@app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+#　テスト用
+#@app.get("/", response_class=HTMLResponse)
+#async def read_root(request: Request):
+#    return templates.TemplateResponse("index.html", {"request": request})
 
-# 用户相关端点
 @app.post("/api/users", response_model=schemas.UserResponse)
 async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db_user = await crud.create_user(db=db, user=user)
@@ -131,13 +122,10 @@ async def login(
                 detail="メールアドレスまたはパスワードが正しくありません"
             )
         
-        # 创建访问令牌
         access_token = jwt_utils.create_access_token(data={"sub": user.email})
-        
-        # 检查用户是否有对话记录
+
         conversations = await crud.get_user_conversations(db, user.id)
         
-        # 如果没有对话记录，创建新对话
         if not conversations:
             new_conversation = await crud.create_conversation(
                 db=db,
@@ -148,7 +136,6 @@ async def login(
         else:
             conversation_id = conversations[0].id
         
-        # 在 session 中保存用户信息
         request.session["user_id"] = user.id
         request.session["email"] = user.email
         
@@ -157,7 +144,7 @@ async def login(
             email=user.email,
             success=True,
             token=access_token,
-            conversation_id=conversation_id  # 添加会话ID到响应中
+            conversation_id=conversation_id
         )
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
@@ -196,7 +183,6 @@ async def logout(user: schemas.UserCreate, db: Session = Depends(get_db)):
         logger.error(f"Error logging out: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# 需要认证的端点示例
 @app.get("/api/users/me", response_model=schemas.UserResponse)
 async def read_users_me(current_user: models.User = Depends(get_current_user)):
     return schemas.UserResponse(
@@ -205,18 +191,16 @@ async def read_users_me(current_user: models.User = Depends(get_current_user)):
         success=True
     )
 
-# 修改会话相关端点
 @app.post("/api/conversations", response_model=schemas.ConversationResponse)
 async def create_conversation(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     try:
-        # 创建新对话，使用默认标题
         db_conversation = await crud.create_conversation(
             db, 
             current_user.id, 
-            f"新对话 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"新しい会話 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         return db_conversation
     except Exception as e:
@@ -232,7 +216,6 @@ async def get_user_conversations(
     current_user: models.User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    # 验证用户只能访问自己的会话
     if user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -260,7 +243,6 @@ async def chat(
     db: Session = Depends(get_db)
 ):
     try:
-        # 使用当前认证用户的 ID
         request.user_id = current_user.id
         
         logger.info(f"Received chat request: {request}")
@@ -271,7 +253,6 @@ async def chat(
                 detail="Missing conversation_id or user_id"
             )
         
-        # 验证会话存在
         conversation = await crud.get_conversation(db, request.conversation_id)
         if not conversation:
             raise HTTPException(
@@ -279,7 +260,6 @@ async def chat(
                 detail="Conversation not found"
             )
         
-        # 调用 Gemini API 获取响应
         gemini_response = await gemini_chat(request, db)
         
         if not gemini_response.success:
@@ -291,7 +271,6 @@ async def chat(
                 created_at=None
             )
             
-        # 保存聊天记录到数据库
         chat_create = schemas.ChatCreate(
             user_id=request.user_id,
             conversation_id=request.conversation_id,
@@ -311,7 +290,6 @@ async def chat(
             )
         except Exception as e:
             logger.error(f"Error saving chat message: {str(e)}")
-            # 即使保存失败也返回响应
             return schemas.ChatResponse(
                 response=gemini_response.response,
                 success=True,
@@ -336,7 +314,6 @@ async def get_conversation_messages(
     db: Session = Depends(get_db)
 ):
     try:
-        # 验证会话存在
         conversation = await crud.get_conversation(db, conversation_id)
         if not conversation:
             raise HTTPException(
@@ -364,24 +341,20 @@ async def get_conversation_messages(
         )
 
 
-# 健康检查端点
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
 
-# 修改 session 验证中间件
 @app.middleware("http")
 async def session_middleware(request: Request, call_next):
-    # 排除不需要验证的路径
     exclude_paths = ["/api/login", "/api/signup", "/", "/static", "/api/conversations", "/api/users"]
     
     if not any(request.url.path.startswith(path) for path in exclude_paths):
         try:
-            # 检查 Authorization header
             auth_header = request.headers.get("Authorization")
             if auth_header and auth_header.startswith("Bearer "):
-                # 如果有 Bearer token，跳过 session 检查
                 return await call_next(request)
+
                 
             if "user_id" not in request.session:
                 return JSONResponse(

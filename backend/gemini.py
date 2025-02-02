@@ -37,7 +37,6 @@ async def gemini_chat(request: ChatRequest, db: Session) -> ChatResponse:
             verbose=False
         )
         
-        # 获取响应
         response = await conversation.arun(request.text)
         
         if not response:
