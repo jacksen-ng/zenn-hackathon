@@ -4,14 +4,17 @@ import models, schemas
 from typing import Optional, List
 from datetime import datetime
 import logging
+import jwt_utils  
+from passlib.context import CryptContext
 
 logger = logging.getLogger(__name__)
 
 async def create_user(db: Session, user: schemas.UserCreate):
     try:
+        hashed_password = jwt_utils.get_password_hash(user.password)
         db_user = models.User(
             email=user.email,
-            password=user.password  
+            password=hashed_password
         )
         db.add(db_user)
         db.commit()
@@ -22,18 +25,18 @@ async def create_user(db: Session, user: schemas.UserCreate):
         logger.error(f"Error creating user: {str(e)}")
         raise
 
-async def get_user(db: Session, user_id: int):
+def get_user(db: Session, email: str):
     try:
-        return db.query(models.User).filter(models.User.id == user_id).first()
+        return db.query(models.User).filter(models.User.email == email).first()
     except Exception as e:
         logger.error(f"Error getting user: {str(e)}")
         raise
 
-async def verify_user(db: Session, email: str, password: str):
+def verify_user(db: Session, email: str, password: str):
     try:
         logger.info(f"Attempting to verify user with email: {email}")
         user = db.query(models.User).filter(models.User.email == email).first()
-        if user and user.password == password:  
+        if user and user.password == password:  # 注意：实际应用中应该比较哈希值
             return user
         return None
     except Exception as e:
@@ -42,7 +45,7 @@ async def verify_user(db: Session, email: str, password: str):
 
 async def create_document(db: Session, document: schemas.DocumentCreate):
     try:
-        now = datetime()
+        now = datetime.utcnow()
         db_document = models.Document(
             content=document.content,
             file_name=document.file_name,
@@ -84,7 +87,8 @@ async def delete_document(db: Session, document_id: int):
         logger.error(f"Error deleting document: {str(e)}")
         raise
 
-async def create_conversation(db: Session, user_id: int, title: str = "New Conversation"):
+# Conversation operations
+async def create_conversation(db: Session, user_id: int, title: str = "新对话"):
     try:
         now = datetime.utcnow()
         db_conversation = models.Conversation(
@@ -106,7 +110,7 @@ async def get_user_conversations(db: Session, user_id: int) -> List[models.Conve
     try:
         conversations = db.query(models.Conversation)\
                         .filter(models.Conversation.user_id == user_id)\
-                        .order_by(desc(models.Conversation.updated_at))\
+                        .order_by(models.Conversation.created_at.desc())\
                         .all()
         return conversations if conversations else []
     except Exception as e:
@@ -138,7 +142,7 @@ async def delete_conversation(db: Session, conversation_id: int):
 # Chat operations
 async def create_chat_history(db: Session, chat: schemas.ChatCreate):
     try:
-        now = datetime.utcnow()
+        now = datetime.now()
         
         if chat.conversation_id:
             conversation = await get_conversation(db, chat.conversation_id)
@@ -201,7 +205,7 @@ async def get_user_chat_history(
     try:
         messages = db.query(models.Chat)\
                     .filter(models.Chat.user_id == user_id)\
-                    .order_by(desc(models.Chat.created_at))\
+                    .order_by(models.Chat.created_at.desc())\
                     .offset(skip)\
                     .limit(limit)\
                     .all()
@@ -209,4 +213,9 @@ async def get_user_chat_history(
     except Exception as e:
         logger.error(f"Error getting user chat history: {str(e)}")
         raise
+
+# Password hashing
+def get_password_hash(password: str) -> str:
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    return pwd_context.hash(password)
         

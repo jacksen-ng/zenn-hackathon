@@ -3,17 +3,16 @@ from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
 
-# ユーザーモデル
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
     chats = relationship("Chat", back_populates="user")
 
-# ドキュメントモデル
 class Document(Base):
     __tablename__ = "documents"
     
@@ -23,7 +22,6 @@ class Document(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-# 会話モデル
 class Conversation(Base):
     __tablename__ = "conversations"
     
@@ -36,7 +34,6 @@ class Conversation(Base):
     user = relationship("User", back_populates="conversations")
     messages = relationship("Chat", back_populates="conversation", cascade="all, delete-orphan")
 
-# チャットモデル
 class Chat(Base):
     __tablename__ = "chats"
     

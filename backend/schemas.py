@@ -2,6 +2,13 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    email: Optional[str] = None
+
 class UserCreate(BaseModel):
     email: str
     password: str
@@ -15,6 +22,8 @@ class UserResponse(BaseModel):
     email: str
     success: bool = True
     detail: Optional[str] = None
+    token: Optional[str] = None
+    conversation_id: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -155,3 +164,9 @@ class DeleteResponse(BaseModel):
         json_encoders = {
             datetime: lambda v: v.isoformat() if v else None
         }
+        
+class ExpiredSignatureError(Exception):
+    pass
+
+class InvalidTokenError(Exception):
+    pass
