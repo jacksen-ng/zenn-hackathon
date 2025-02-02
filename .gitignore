@@ -5,3 +5,4 @@ env
 .DS_Store
 package-lock.json
 package.json
+hackathon_venv
