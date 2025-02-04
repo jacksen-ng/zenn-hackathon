@@ -70,8 +70,6 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
 app.add_middleware(ErrorHandlingMiddleware)
 
 templates = Jinja2Templates(directory="templates")
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 #　テスト用
