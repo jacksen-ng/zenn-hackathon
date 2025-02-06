@@ -41,7 +41,7 @@ requests  # 手動でrequestsを直接使う場合のみ
 # lxml
 # PyYAML
 python-dotenv
-# pypdf / pypdfium2
+# pypdf
 # fsspec
 # filetype
 # etc.
@@ -57,3 +57,9 @@ passlib[bcrypt]
 pydantic
 # langchain_google_genai
 # langchain
+python-jose\[cryptography\]
+pypdfium2
+PyJWT
+itsdangerous
+Jinja2
+python-multipart
