@@ -9,6 +9,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.document_loaders import TextLoader
+from langchain_community.document_loaders import JSONLoader
 from langchain.memory import ChatMessageHistory
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.prompts.chat import MessagesPlaceholder
@@ -61,7 +62,12 @@ class Gemini_RAG:
         """
         指定したファイルパスからドキュメントを読み込む
         """
-        loader = TextLoader(path)
+        if path.endswith(".txt"):
+            loader = TextLoader(path)
+        elif path.endswith(".json"):
+            loader = JSONLoader(path, jq_schema=". | tojson", text_content=True)
+        else:
+            raise ValueError("Unsupported file format")
         self.documents = loader.load()
 
     def _text_splitter(
