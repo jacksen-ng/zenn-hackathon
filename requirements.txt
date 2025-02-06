@@ -10,7 +10,7 @@ langchain-experimental
 langchain-text-splitters
 langchain-google-genai
 langchain-huggingface
-langchain_community jq
+
 # langchain-openai
 
 # --- LLM関連 ---
@@ -57,7 +57,7 @@ passlib[bcrypt]
 pydantic
 # langchain_google_genai
 # langchain
-python-jose\[cryptography\]
+python-jose[cryptography]
 pypdfium2
 PyJWT
 itsdangerous
