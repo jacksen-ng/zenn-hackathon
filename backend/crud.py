@@ -61,6 +61,20 @@ async def create_document(db: Session, document: schemas.DocumentCreate):
         logger.error(f"Error creating document: {str(e)}")
         raise
 
+def create_document(db: Session, doc: schemas.DocumentCreate, owner_id: int):
+    """将上传的文档存入数据库"""
+    db_doc = models.Document(
+        owner_id=owner_id,
+        filename=doc.filename,
+        content=doc.content,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
+    )
+    db.add(db_doc)
+    db.commit()
+    db.refresh(db_doc)
+    return db_doc
+
 async def get_all_documents(db: Session):
     try:
         return db.query(models.Document).all()
@@ -74,6 +88,18 @@ async def get_document(db: Session, document_id: int):
     except Exception as e:
         logger.error(f"Error getting document: {str(e)}")
         raise
+
+def get_document_by_id(db: Session, document_id: int):
+    """根据document_id查询文档"""
+    return db.query(models.Document).filter(models.Document.id == document_id).first()
+
+def get_document_by_user(db: Session, owner_id: int):
+    """根据owner_id查询该用户最新上传的文档"""
+    return db.query(models.Document).filter(models.Document.owner_id == owner_id).order_by(models.Document.created_at.desc()).first()
+
+def get_document_sync(db: Session, document_id: int):
+    """从数据库中获取文档"""
+    return db.query(models.Document).filter(models.Document.id == document_id).first()
 
 async def delete_document(db: Session, document_id: int):
     try:
@@ -218,4 +244,3 @@ async def get_user_chat_history(
 def get_password_hash(password: str) -> str:
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     return pwd_context.hash(password)
-        

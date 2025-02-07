@@ -29,11 +29,19 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 class DocumentBase(BaseModel):
+    filename: str
     content: str
-    file_name: str
 
 class DocumentCreate(DocumentBase):
     pass
+
+class DocumentResponse(DocumentBase):
+    id: int
+    owner_id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 class Document(DocumentBase):
     id: int
@@ -89,13 +97,22 @@ class ConversationListResponse(BaseModel):
         }
 
 class ChatRequest(BaseModel):
+    conversation_id: int
     text: str
-    conversation_id: Optional[int] = None
+    use_rag: bool = False
+    # 允许接收来自前端的 user_id 字段，可为空
     user_id: Optional[int] = None
+    document_path: Optional[str] = None
+    document_id: Optional[int] = None
+    # 用于后端传入当前用户ID
+    owner_id: Optional[int] = None
+
+    class Config:
+        extra = "allow"
 
 class ChatResponse(BaseModel):
     response: str
-    success: bool = True
+    success: bool
     detail: Optional[str] = None
     created_at: Optional[datetime] = None
 
@@ -137,10 +154,21 @@ class MessagesResponse(BaseModel):
         }
 
 class ChatCreate(BaseModel):
-    user_id: Optional[int] = None
-    conversation_id: Optional[int] = None
+    user_id: int 
+    conversation_id: int
     question: str
     response: str
+    
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "user_id": 1,
+                "conversation_id": 1,
+                "question": "Hello",
+                "response": "Hi there!"
+            }
+        }
 
 class ChatHistory(ChatCreate):
     id: int
