@@ -6,4 +6,8 @@ env
 package-lock.json
 package.json
 hackathon_venv
+
+__pycache__
+
 data
+

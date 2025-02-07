@@ -19,7 +19,7 @@ if not GOOGLE_API_KEY:
     raise ValueError("API_KEY is not set in the environment variables")
 
 conversation_memories = {}
-rag_instances = {} 
+rag_instances = {}
 
 def get_or_create_memory(conversation_id: int):
     if conversation_id not in conversation_memories:
@@ -29,19 +29,6 @@ def get_or_create_memory(conversation_id: int):
 def validate_document_path(path: str) -> bool:
     return path and os.path.exists(path) and os.path.isfile(path)
 
-def get_or_create_rag(conversation_id: int, document_path: str = None):
-    if conversation_id not in rag_instances:
-        rag = Gemini_RAG()
-        if document_path:
-            if not validate_document_path(document_path):
-                raise ValueError(f"Invalid or inaccessible document path: {document_path}")
-            try:
-                rag.save_text(document_path)
-            except Exception as e:
-                raise Exception(f"Failed to initialize RAG with document: {str(e)}")
-        rag.run()
-        rag_instances[conversation_id] = rag
-    return rag_instances[conversation_id]
 
 def reinitialize_rag(rag_instance, document_path: str, chunk_size: int = 100, chunk_overlap: int = 70):
     rag_instance.save_text(
@@ -63,45 +50,43 @@ def gemini_chat(request_data: dict, db: Session) -> str:
 
         if use_rag:
             owner_id = request_data.get('owner_id')
-            
+            if not owner_id:
+                raise ValueError("Missing owner_id")
             doc = get_document_by_user(db, owner_id)
             if not doc:
                 raise ValueError("No document found for this user")
-            
-            try:
-                rag = rag_instances.get(conversation_id)
-                if not rag or not rag.is_initialized:
-                    rag = Gemini_RAG()
-                    rag.save_text(doc.content)
-                    rag.run()
-                    rag_instances[conversation_id] = rag
-                elif rag.current_document != doc.id:
-                    rag.save_text(doc.content)
-                    rag.run()
-                    rag.current_document = doc.id
-            except Exception as e:
-                print(f"Error initializing RAG: {str(e)}")
-                raise
+
+            if conversation_id not in rag_instances:
+                rag = Gemini_RAG()
+                if doc.content:
+                    try:
+                        rag.save_text(doc.content)
+                    except Exception as e:
+                        raise Exception(f"Failed to initialize RAG with document: {str(e)}")
+                rag.run()
+                rag_instances[conversation_id] = rag
+            else:
+                rag = rag_instances[conversation_id]
 
             response = str(rag.ask(
                 prompt=request_data['text'],
                 session_id=str(conversation_id)
             ))
-            
             return response
 
-        memory = get_or_create_memory(conversation_id)
-        llm = ChatGoogleGenerativeAI(
-            model=MODEL, 
-            temperature=0.7,
-            google_api_key=GOOGLE_API_KEY
-        )
-        conversation = ConversationChain(
-            llm=llm,
-            memory=memory,
-            verbose=False
-        )
-        return conversation.run(request_data['text'])
+        else:
+            memory = get_or_create_memory(conversation_id)
+            llm = ChatGoogleGenerativeAI(
+                model=MODEL,
+                temperature=0.7,
+                google_api_key=GOOGLE_API_KEY
+            )
+            conversation = ConversationChain(
+                llm=llm,
+                memory=memory,
+                verbose=False
+            )
+            return conversation.run(request_data['text'])
 
     except Exception as e:
         print(f"Error in gemini_chat: {str(e)}")
