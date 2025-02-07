@@ -18,6 +18,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, trim_messages, filter_messages
 from operator import itemgetter
 from langchain_core.runnables import RunnableLambda
+from langchain.docstore.document import Document
 
 # 必要なnltkデータをダウンロード
 nltk.download('punkt')
@@ -55,14 +56,8 @@ class Gemini_RAG:
         self.contextualize_chain = None
         self.qa_chain = None
         self.qa_with_history = None
-
-
-    def _loader(self, path: str = "data/rag.txt"):
-        """
-        指定したファイルパスからドキュメントを読み込む
-        """
-        loader = TextLoader(path)
-        self.documents = loader.load()
+        self.current_document = None  # Track current document path
+        self.is_initialized = False
 
     def _text_splitter(
         self,
@@ -104,14 +99,36 @@ class Gemini_RAG:
         """
         return msg.content
 
-    def save_text(self, path: str, chunk_size: int = 100, chunk_overlap: int = 70, k: int = 8):
+    def save_text(self, content: str, chunk_size: int = 100, chunk_overlap: int = 70):
+        """Load and process document content directly"""
+        print(f"Attempting to process text content")
+        
+        if not content:
+            raise ValueError("Document content cannot be empty")
+            
+        try:
+            self._process_text(content)
+            self._text_splitter(chunk_size, chunk_overlap)
+            self._vector_store()
+            self._retriever()
+            self.is_initialized = True
+            print(f"Successfully processed document content")
+        except Exception as e:
+            print(f"Error processing document: {str(e)}")
+            raise
+
+    def _process_text(self, content: str):
         """
-        指定パスのファイルをロード→分割→ベクトルストアへ格納→リトリーバー作成 までを行う
+        テキスト内容を直接処理する
         """
-        self._loader(path)
-        self._text_splitter(chunk_size, chunk_overlap)
-        self._vector_store()
-        self._retriever(k)
+        try:
+            # ドキュメントオブジェクトを作成
+            self.documents = [Document(page_content=content)]
+            print(f"Document content processed successfully")
+            print(f"Document content length: {len(content)}")
+        except Exception as e:
+            print(f"Error processing text content: {str(e)}")
+            raise
 
     def _trimmer(self, input_messages):
         trimmer = trim_messages(
