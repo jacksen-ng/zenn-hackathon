@@ -3,15 +3,14 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import os
 from dotenv import load_dotenv
-import logging
+from secret_key import env_file
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+env_file()
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+)
 engine = create_engine(
     DATABASE_URL,
     pool_size=5,
@@ -30,7 +29,6 @@ def get_db():
         db.execute(text("SELECT 1"))
         return db
     except Exception as e:
-        logger.error(f"Database connection error: {e}")
         raise
     finally:
         db.close()

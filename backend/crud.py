@@ -3,11 +3,9 @@ from sqlalchemy import desc
 import models, schemas
 from typing import Optional, List
 from datetime import datetime
-import logging
 import jwt_utils  
 from passlib.context import CryptContext
 
-logger = logging.getLogger(__name__)
 
 async def create_user(db: Session, user: schemas.UserCreate):
     try:
@@ -22,25 +20,21 @@ async def create_user(db: Session, user: schemas.UserCreate):
         return db_user
     except Exception as e:
         db.rollback()
-        logger.error(f"Error creating user: {str(e)}")
         raise
 
 def get_user(db: Session, email: str):
     try:
         return db.query(models.User).filter(models.User.email == email).first()
     except Exception as e:
-        logger.error(f"Error getting user: {str(e)}")
         raise
 
 def verify_user(db: Session, email: str, password: str):
     try:
-        logger.info(f"Attempting to verify user with email: {email}")
         user = db.query(models.User).filter(models.User.email == email).first()
-        if user and user.password == password:  # 注意：实际应用中应该比较哈希值
+        if user and user.password == password: 
             return user
         return None
     except Exception as e:
-        logger.error(f"Error verifying user: {str(e)}")
         raise
 
 async def create_document(db: Session, document: schemas.DocumentCreate):
@@ -58,7 +52,6 @@ async def create_document(db: Session, document: schemas.DocumentCreate):
         return db_document
     except Exception as e:
         db.rollback()
-        logger.error(f"Error creating document: {str(e)}")
         raise
 
 def create_document(db: Session, doc: schemas.DocumentCreate, owner_id: int):
@@ -78,14 +71,12 @@ async def get_all_documents(db: Session):
     try:
         return db.query(models.Document).all()
     except Exception as e:
-        logger.error(f"Error getting all documents: {str(e)}")
         raise
 
 async def get_document(db: Session, document_id: int):
     try:
         return db.query(models.Document).filter(models.Document.id == document_id).first()
     except Exception as e:
-        logger.error(f"Error getting document: {str(e)}")
         raise
 
 def get_document_by_id(db: Session, document_id: int):
@@ -106,7 +97,6 @@ async def delete_document(db: Session, document_id: int):
         return document
     except Exception as e:
         db.rollback()
-        logger.error(f"Error deleting document: {str(e)}")
         raise
 
 # Conversation operations
@@ -125,7 +115,6 @@ async def create_conversation(db: Session, user_id: int, title: str = "新对话
         return db_conversation
     except Exception as e:
         db.rollback()
-        logger.error(f"Error creating conversation: {str(e)}")
         raise
 
 async def get_user_conversations(db: Session, user_id: int) -> List[models.Conversation]:
@@ -136,7 +125,6 @@ async def get_user_conversations(db: Session, user_id: int) -> List[models.Conve
                         .all()
         return conversations if conversations else []
     except Exception as e:
-        logger.error(f"Error getting user conversations: {str(e)}")
         raise
 
 async def get_conversation(db: Session, conversation_id: int):
@@ -145,7 +133,6 @@ async def get_conversation(db: Session, conversation_id: int):
                     .filter(models.Conversation.id == conversation_id)\
                     .first()
     except Exception as e:
-        logger.error(f"Error getting conversation: {str(e)}")
         raise
 
 async def delete_conversation(db: Session, conversation_id: int):
@@ -158,7 +145,6 @@ async def delete_conversation(db: Session, conversation_id: int):
         return False
     except Exception as e:
         db.rollback()
-        logger.error(f"Error deleting conversation: {str(e)}")
         raise
 
 # Chat operations
@@ -197,7 +183,6 @@ async def create_chat_history(db: Session, chat: schemas.ChatCreate):
         
     except Exception as e:
         db.rollback()
-        logger.error(f"Error creating chat history: {str(e)}")
         raise
 
 async def get_conversation_messages(
@@ -215,7 +200,6 @@ async def get_conversation_messages(
                     .all()
         return messages if messages else []
     except Exception as e:
-        logger.error(f"Error getting conversation messages: {str(e)}")
         raise
 
 async def get_user_chat_history(
@@ -233,7 +217,6 @@ async def get_user_chat_history(
                     .all()
         return messages if messages else []
     except Exception as e:
-        logger.error(f"Error getting user chat history: {str(e)}")
         raise
 
 # Password hashing
