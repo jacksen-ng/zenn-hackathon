@@ -1,0 +1,23 @@
+FROM python:3.12.6
+
+# 環境変数の設定（出力をバッファリングせず、Cloud Run の標準ポートを指定）
+# ログを確認したりでデバックしたい場合，コメントアウトを外す(https://zenn.dev/40_comeback_eng/articles/0d7f10e0ff7089)
+# ENV PYTHONUNBUFFERED=1
+ENV PORT=8080
+
+# 作業ディレクトリはカレントディレクトリ
+# .でうまくいかなかったら${PWD}を試す
+WORKDIR .
+
+# 依存関係リストをコピーしてインストール
+COPY requirements.txt .
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# プロジェクト全体をコンテナにコピー
+COPY . .
+
+# Cloud Run はデフォルトでポート8080を利用
+EXPOSE 8080
+
+# アプリケーション起動（backendディレクトリ内のmain.pyからFastAPIアプリを起動）
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8080"]
