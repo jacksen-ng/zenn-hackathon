@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 import uvicorn
 import models, schemas, crud
 from database import engine, Base, get_db
-from pdf_to_text import pdf_to_text
 import io
 from typing import Optional, AsyncGenerator, List
 from gemini import gemini_chat, clear_conversation_memory
@@ -21,10 +20,10 @@ from jwt_utils import create_access_token, get_current_user, get_current_active_
 from jwt import ExpiredSignatureError, InvalidTokenError
 from starlette.middleware.sessions import SessionMiddleware
 import secrets
-from models import User  # ensure User model is imported
-import crud  # ensure crud is imported
-import schemas  # ensure schemas is imported
-from crud import create_document, get_document_by_id, get_document_by_user  # 使用已定义的存储函数
+from models import User
+import crud
+import schemas
+from crud import create_document, get_document_by_id, get_document_by_user
 from schemas import DocumentCreate, DocumentResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -85,7 +84,6 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             )
 
 app.add_middleware(ErrorHandlingMiddleware)
-
 
 @app.post("/api/users", response_model=schemas.UserResponse)
 async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
