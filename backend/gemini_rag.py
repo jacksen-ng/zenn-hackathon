@@ -19,6 +19,11 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, trim
 from operator import itemgetter
 from langchain_core.runnables import RunnableLambda
 from langchain.docstore.document import Document
+from secret_key import env_file, google_credentials
+
+env_file()
+google_credentials()
+load_dotenv()
 
 # 必要なnltkデータをダウンロード
 nltk.download('punkt')
@@ -74,30 +79,39 @@ class Gemini_RAG:
             length_function=len,
             is_separator_regex=False,
         )
+        print("text_splitterが作成されました")
         texts = text_splitter.create_documents([self.documents[0].page_content])
+        print("textsが作成されました")
         self.list_ = [text.page_content for text in texts]
+        print("list_が作成されました")
 
     def _vector_store(self):
+        print("vector_storeが呼び出されました")
         """
         テキストをベクトル化してFAISSに格納する
         """
+        print(self.list_)
         self.vectorstore = FAISS.from_texts(
             self.list_,
             embedding=HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
         )
+        print("ベクトルストアが作成されました")
 
     def _retriever(self, k: int = 8):
         """
         ベクトルストアからリトリーバーを作成する
         """
         self.retriever = self.vectorstore.as_retriever(search_kwargs={"k": k})
+        print("リトリーバーが作成されました")
 
     def _get_msg_content(self, msg):
         print("get_msg_contentが呼び出されました")
         """
         メッセージオブジェクトから実際のテキスト（content）だけを抽出する
         """
+        print(msg.content)
         return msg.content
+
 
     def save_text(self, content: str, chunk_size: int = 100, chunk_overlap: int = 70):
         """Load and process document content directly"""
@@ -131,6 +145,7 @@ class Gemini_RAG:
             raise
 
     def _trimmer(self, input_messages):
+        print("trimmerが呼び出されました")
         trimmer = trim_messages(
         max_tokens=3,
         strategy="last",

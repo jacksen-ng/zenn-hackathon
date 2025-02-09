@@ -11,9 +11,11 @@ from models import User
 from fastapi import Depends, HTTPException, status
 from schemas import TokenData
 from sqlalchemy.orm import Session
-import logging
 import bcrypt
+from secret_key import env_file, google_credentials
 
+env_file()
+google_credentials()
 load_dotenv()
 
 SECRET_KEY = os.getenv("SECRET_KEY")  
@@ -27,44 +29,36 @@ pwd_context = CryptContext(
 )
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-logger = logging.getLogger(__name__)
-
 def verify_password(plain_password, hashed_password):
     try:
         return pwd_context.verify(plain_password, hashed_password)
     except Exception as e:
-        logger.error(f"パスワード検証エラー: {str(e)}")
         return False
 
 def get_password_hash(password):
     try:
         return pwd_context.hash(password)
     except Exception as e:
-        logger.error(f"パスワードハッシュエラー: {str(e)}")
         raise
 
 def get_user_by_email(db: Session, email: str):
     try:
         return db.query(User).filter(User.email == email).first()
     except Exception as e:
-        logger.error(f"Error getting user: {str(e)}")
         raise
 
 async def authenticate_user(db: Session, email: str, password: str):
     try:
         user = get_user_by_email(db, email)
         if not user:
-            logger.warning(f"User not found: {email}")
             return False
             
         if not verify_password(password, user.password):
-            logger.warning(f"Invalid password for user: {email}")
             return False
             
-        logger.info(f"Authentication successful for user: {email}")
         return user
     except Exception as e:
-        logger.error(f"認証エラー: {str(e)}")
+        return False
         return False
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):

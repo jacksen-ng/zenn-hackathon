@@ -9,8 +9,11 @@ from langchain.chains import ConversationChain
 from datetime import datetime
 from gemini_rag import Gemini_RAG
 import tempfile
-from crud import get_document_sync, get_document_by_id, get_document_by_user  # 导入新函数
+from crud import get_document_sync, get_document_by_id, get_document_by_user  
+from secret_key import env_file, google_credentials
 
+env_file()
+google_credentials()
 load_dotenv()
 
 GOOGLE_API_KEY = os.getenv("API_KEY")
@@ -19,7 +22,7 @@ if not GOOGLE_API_KEY:
     raise ValueError("API_KEY is not set in the environment variables")
 
 conversation_memories = {}
-rag_instances = {}
+rag_instances = {} 
 
 def get_or_create_memory(conversation_id: int):
     if conversation_id not in conversation_memories:

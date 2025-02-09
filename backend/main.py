@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 import uvicorn
 import models, schemas, crud
 from database import engine, Base, get_db
-import logging
 from pdf_to_text import pdf_to_text
 import io
 from typing import Optional, AsyncGenerator, List
@@ -22,9 +21,9 @@ from jwt_utils import create_access_token, get_current_user, get_current_active_
 from jwt import ExpiredSignatureError, InvalidTokenError
 from starlette.middleware.sessions import SessionMiddleware
 import secrets
-from models import User  
-import crud 
-import schemas 
+from models import User  # ensure User model is imported
+import crud  # ensure crud is imported
+import schemas  # ensure schemas is imported
 from crud import create_document, get_document_by_id, get_document_by_user  # 使用已定义的存储函数
 from schemas import DocumentCreate, DocumentResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -32,13 +31,11 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
+from document_ai import Document_AI
+import json
+from starlette.concurrency import run_in_threadpool
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
+    
 Base.metadata.create_all(bind=engine)
 
 limiter = Limiter(key_func=get_remote_address)
@@ -79,7 +76,6 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
         except Exception as e:
-            logger.error(f"Unhandled error: {str(e)}")
             return JSONResponse(
                 status_code=500,
                 content={
@@ -90,13 +86,6 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(ErrorHandlingMiddleware)
 
-templates = Jinja2Templates(directory="templates")
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
-
-#@app.get("/", response_class=HTMLResponse)
-#async def read_root(request: Request):
-#    return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/api/users", response_model=schemas.UserResponse)
 async def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -166,7 +155,6 @@ async def login(
             conversation_id=conversation_id 
         )
     except Exception as e:
-        logger.error(f"Login error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -174,7 +162,6 @@ async def login(
         
 @app.post("/api/signup", response_model=schemas.UserResponse)
 async def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    logger.info(f"Signup attempt for email: {user.email}")
     try:
         db_user = await crud.create_user(db=db, user=user)
         return schemas.UserResponse(
@@ -183,12 +170,10 @@ async def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
             success=True
         )
     except Exception as e:
-        logger.error(f"Error creating user: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/logout", response_model=schemas.UserResponse)
 async def logout(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    logger.info(f"Logout attempt for email: {user.email}")
     try:
         clear_conversation_memory()
         return schemas.UserResponse(
@@ -197,7 +182,6 @@ async def logout(user: schemas.UserCreate, db: Session = Depends(get_db)):
             success=True
         )
     except Exception as e:
-        logger.error(f"Error logging out: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/users/me", response_model=schemas.UserResponse)
@@ -221,7 +205,6 @@ async def create_conversation(
         )
         return db_conversation
     except Exception as e:
-        logger.error(f"Error creating conversation: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
@@ -245,7 +228,6 @@ async def get_user_conversations(
             success=True
         )
     except Exception as e:
-        logger.error(f"Error getting conversations: {str(e)}")
         return schemas.ConversationListResponse(
             conversations=[],
             success=False,
@@ -264,7 +246,6 @@ async def chat(
         response_text = gemini_chat(req_data, db)
         return schemas.ChatResponse(response=response_text, success=True)
     except Exception as e:
-        logger.error(f"Error in chat endpoint: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/api/conversations/{conversation_id}/messages", response_model=schemas.MessagesResponse)
@@ -295,58 +276,42 @@ async def get_conversation_messages(
         return schemas.MessagesResponse(messages=messages)
         
     except Exception as e:
-        logger.error(f"Error getting conversation messages: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Error retrieving messages: {str(e)}"
         )
 
-@app.post("/api/upload-document", response_model=schemas.DocumentResponse)
-@limiter.limit("5/minute") 
-async def upload_document(
-    request: Request,
-    file: UploadFile = File(...),
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    file_size = 0
-    content = b""
-    
-    while chunk := await file.read(8192):
-        content += chunk
-        file_size += len(chunk)
-        if file_size > FILE_SIZE_LIMIT:
-            raise HTTPException(
-                status_code=413,
-                detail="ファイルサイズが大きすぎます。2MB以下のファイルを選択してください。"
-            )
-    
-    try:
-        content_str = content.decode('utf-8')
-        doc_create = schemas.DocumentCreate(
-            filename=file.filename,
-            content=content_str
-        )
-        document = create_document(db, doc_create, current_user.id)
-        return document
-    except Exception as e:
-        logger.error(f"ドキュメントのアップロードエラー: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
-
-@app.post("/upload-document", response_model=DocumentResponse)
+@app.post("/api/upload-document", response_model=DocumentResponse)
 async def upload_document(
     owner_id: int = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    content_bytes = await file.read()
-    content = content_bytes.decode("utf-8")
-    doc_data = DocumentCreate(filename=file.filename, content=content)
-    db_doc = create_document(db, doc_data, owner_id)
-    return db_doc
+    try:
+        # Read file data asynchronously
+        content_bytes = await file.read()
+        dai = Document_AI()
+        extracted_text = await run_in_threadpool(dai.process_document, content_bytes)
+        
+        if not extracted_text:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to extract text from document"
+            )
+            
+        doc_data = DocumentCreate(
+            filename=file.filename,
+            content=extracted_text
+        )
+        
+        db_doc = await run_in_threadpool(create_document, db, doc_data, owner_id)
+        return db_doc
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
 
 @app.delete("/api/conversations/{conversation_id}", response_model=schemas.DeleteResponse)
 @limiter.limit("10/minute") 
@@ -376,7 +341,6 @@ async def delete_conversation(
                 detail="会話の削除中にエラーが発生しました"
             )
     except Exception as e:
-        logger.error(f"会話削除エラー: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=str(e)
@@ -393,7 +357,6 @@ async def health_check(request: Request, db: Session = Depends(get_db)):
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        logger.error(f"ヘルスチェックエラー: {str(e)}")
         return {
             "status": "不健康",
             "database": "接続エラー",
@@ -417,7 +380,6 @@ async def session_middleware(request: Request, call_next):
                     content={"detail": "Session expired"}
                 )
         except Exception as e:
-            logger.error(f"Session middleware error: {str(e)}")
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 content={"detail": "Internal server error"}
@@ -440,7 +402,6 @@ async def get_latest_document(
             )
         return document
     except Exception as e:
-        logger.error(f"Error getting latest document: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=str(e)
