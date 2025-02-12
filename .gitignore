@@ -1,0 +1,16 @@
+.env
+node_modules
+venv
+env
+.DS_Store
+package-lock.json
+package.json
+hackathon_venv
+
+__pycache__
+
+data
+
+cloudbuild.yaml
+nginx.conf
+__pycache__
