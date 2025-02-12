@@ -14,7 +14,7 @@ class Document_AI:
         self.project_id = os.getenv("PROJECT_ID")
         self.location = os.getenv("LOCATION")
         self.processor_id = os.getenv("PROCESSOR_ID")
-        self.service_account_path = os.getenv("SERVICE_ACCOUNT_PATH")
+        self.service_account_path = google_credentials()
         
     def auth_session(self):
         credentials = service_account.Credentials.from_service_account_file(

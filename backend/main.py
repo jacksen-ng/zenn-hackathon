@@ -62,7 +62,7 @@ app.add_middleware(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -281,35 +281,56 @@ async def get_conversation_messages(
 
 @app.post("/api/upload-document", response_model=DocumentResponse)
 async def upload_document(
-    owner_id: int = Form(...),
     file: UploadFile = File(...),
+    owner_id: int = Form(...),
     db: Session = Depends(get_db)
 ):
     try:
-        # Read file data asynchronously
-        content_bytes = await file.read()
+        content = await file.read()
+        if len(content) > FILE_SIZE_LIMIT:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="File size exceeds limit"
+            )
+
         dai = Document_AI()
-        extracted_text = await run_in_threadpool(dai.process_document, content_bytes)
+        extracted_text = await run_in_threadpool(
+            lambda: dai.process_document(content)
+        )
         
         if not extracted_text:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Failed to extract text from document"
             )
-            
+
         doc_data = DocumentCreate(
             filename=file.filename,
             content=extracted_text
         )
         
-        db_doc = await run_in_threadpool(create_document, db, doc_data, owner_id)
-        return db_doc
+        # Run create_document in a threadpool since it's a blocking operation
+        db_doc = await run_in_threadpool(
+            lambda: create_document(db, doc_data, owner_id)
+        )
+        
+        return DocumentResponse(
+            id=db_doc.id,
+            filename=db_doc.filename,
+            content=db_doc.content,
+            owner_id=db_doc.owner_id,
+            created_at=db_doc.created_at,
+            success=True
+        )
         
     except Exception as e:
+        print(f"Upload error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(e)
         )
+    finally:
+        await file.close()
 
 @app.delete("/api/conversations/{conversation_id}", response_model=schemas.DeleteResponse)
 @limiter.limit("10/minute") 
@@ -405,5 +426,16 @@ async def get_latest_document(
             detail=str(e)
         )
 
+# health check
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8080)),
+        reload=False
+    )

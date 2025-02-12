@@ -35,10 +35,13 @@ class DocumentBase(BaseModel):
 class DocumentCreate(DocumentBase):
     pass
 
-class DocumentResponse(DocumentBase):
+class DocumentResponse(BaseModel):
     id: int
+    filename: str
+    content: str
     owner_id: int
     created_at: datetime
+    success: bool
 
     class Config:
         from_attributes = True

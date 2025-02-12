@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const api = axios.create({
-    baseURL: 'http://localhost:8000',
+    baseURL: 'http://localhost:8080',
     headers: {
         'Content-Type': 'application/json',
     },
@@ -120,6 +120,29 @@ export const getMessages = async (conversationId) => {
         return { messages: [] };
     } catch (error) {
         console.error('Error fetching messages:', error);
+        throw error;
+    }
+};
+
+export const uploadDocument = async (file, ownerId) => {
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('owner_id', ownerId);
+
+        const response = await api.post('/api/upload-document', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        
+        if (response.data) {
+            return response.data;
+        } else {
+            throw new Error('Invalid upload response');
+        }
+    } catch (error) {
+        console.error('Upload error:', error);
         throw error;
     }
 };

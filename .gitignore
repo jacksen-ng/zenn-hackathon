@@ -11,3 +11,6 @@ __pycache__
 
 data
 
+cloudbuild.yaml
+nginx.conf
+__pycache__

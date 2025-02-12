@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { chatService } from '../services/chatService';
 import ChatInput from '../components/chatInput';
 import '../styles/chat.css';
-import { api, logout } from '../services/api';
+import { api, logout, uploadDocument } from '../services/api';
 
 export default function Chat() {
     const [messages, setMessages] = useState([]);
@@ -157,40 +157,39 @@ export default function Chat() {
     const handleFileUpload = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
+        
+        // 检查文件大小（2MB限制）
         if (file.size > 2 * 1024 * 1024) {
-        alert('ファイルサイズが大きすぎます。2MB以下のファイルを選択してください。');
-        return;
+            alert('ファイルサイズが大きすぎます。2MB以下のファイルを選択してください。');
+            return;
         }
 
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('owner_id', userData.userId);
+        // 检查文件类型
+        const allowedTypes = ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        if (!allowedTypes.includes(file.type)) {
+            alert('サポートされていないファイル形式です。PDF、TXT、DOC、DOCXファイルのみ対応しています。');
+            return;
+        }
 
         try {
-        const response = await fetch('/api/upload-document', {
-            method: 'POST',
-            headers: {
-            'Authorization': `Bearer ${userData.token}`
-            },
-            body: formData
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (data.id) {
-            setCurrentDocumentId(data.id);
-            setDocuments(prev => [...prev, data]);
-            setUseRAG(true);
-            alert("アップロード成功");
-        } else {
-            throw new Error("ドキュメントIDが返されませんでした");
-        }
+            const response = await uploadDocument(file, userData.userId);
+            if (response.id) {
+                setCurrentDocumentId(response.id);
+                setDocuments(prev => [...prev, {
+                    id: response.id,
+                    name: file.name
+                }]);
+                setUseRAG(true);
+                alert("アップロード成功しました");
+            } else {
+                throw new Error("ドキュメントの処理に失敗しました");
+            }
         } catch (error) {
-        console.error("Upload error:", error);
-        alert("アップロード失敗: " + error.message);
+            console.error("Upload error:", error);
+            alert(`アップロード失敗: ${error.response?.data?.detail || error.message}`);
+        } finally {
+            // リセットファイル入力
+            event.target.value = '';
         }
     };
     

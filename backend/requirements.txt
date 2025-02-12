@@ -31,3 +31,6 @@ PyJWT
 itsdangerous
 Jinja2
 python-multipart
+google-cloud-secret-manager
+slowapi
+click==8.1.7
