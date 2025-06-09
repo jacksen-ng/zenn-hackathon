@@ -11,7 +11,7 @@ ENV HOST=0.0.0.0
 ENV PYTHONPATH=/app
 ENV PORT=8080
 
+EXPOSE ${PORT}
 
-EXPOSE 8080
+CMD ["sh", "-c", "python -m uvicorn main:app --host 0.0.0.0 --port ${PORT}"]
 
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

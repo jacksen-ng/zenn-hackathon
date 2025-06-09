@@ -13,4 +13,5 @@ data
 
 cloudbuild.yaml
 nginx.conf
+!client/nginx.conf
 __pycache__
